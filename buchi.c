@@ -564,21 +564,21 @@ void print_spin_buchi() {
       fprintf(tl_out, "\t:: (");
       spin_print_set(t->pos, t->neg);
       for(t1 = t; t1->nxt != s->trans; )
-	if (t1->nxt->to->id == t->to->id &&
-	    t1->nxt->to->final == t->to->final) {
-	  fprintf(tl_out, ") || (");
-	  spin_print_set(t1->nxt->pos, t1->nxt->neg);
-	  t1->nxt = t1->nxt->nxt;
-	}
-	else  t1 = t1->nxt;
+          if (t1->nxt->to->id == t->to->id &&
+              t1->nxt->to->final == t->to->final) {
+              fprintf(tl_out, ") || (");
+              spin_print_set(t1->nxt->pos, t1->nxt->neg);
+              t1->nxt = t1->nxt->nxt;
+          }
+          else  t1 = t1->nxt;
       fprintf(tl_out, ") -> goto ");
       if(t->to->final == accept)
-	fprintf(tl_out, "accept_");
+          fprintf(tl_out, "accept_");
       else fprintf(tl_out, "T%i_", t->to->final);
       if(t->to->id == 0)
-	fprintf(tl_out, "all\n");
+          fprintf(tl_out, "all\n");
       else if(t->to->id == -1)
-	fprintf(tl_out, "init\n");
+          fprintf(tl_out, "init\n");
       else fprintf(tl_out, "S%i\n", t->to->id);
     }
     fprintf(tl_out, "\tfi;\n");
@@ -588,6 +588,82 @@ void print_spin_buchi() {
     fprintf(tl_out, "\tskip\n");
   }
   fprintf(tl_out, "}\n");
+}
+
+void c_print_set(int* pos, int* neg) {
+    spin_print_set(pos, neg);
+}
+
+void print_c_buchi() {
+    BTrans *t;
+    BState *s;
+    int accept_all = 0, trans_num;
+#if 0
+    if(bstates->nxt == bstates) { /* empty automaton */
+        fprintf(tl_out, "never {    /* ");
+        put_uform();
+        fprintf(tl_out, " */\n");
+        fprintf(tl_out, "T0_init:\n");
+        fprintf(tl_out, "\tfalse;\n");
+        fprintf(tl_out, "}\n");
+        return;
+    }
+    if(bstates->nxt->nxt == bstates && bstates->nxt->id == 0) { /* true */
+        fprintf(tl_out, "never {    /* ");
+        put_uform();
+        fprintf(tl_out, " */\n");
+        fprintf(tl_out, "accept_init:\n");
+        fprintf(tl_out, "\tif\n");
+        fprintf(tl_out, "\t:: (1) -> goto accept_init\n");
+        fprintf(tl_out, "\tfi;\n");
+        fprintf(tl_out, "}\n");
+        return;
+    }
+#endif
+
+    fprintf(tl_out, "/* ");
+    put_uform();
+    fprintf(tl_out, " */\n");
+    fprintf(tl_out, "void\ntrans() {\n");
+    fprintf(tl_out, "\tint choice = NON_DET();\n");
+    fprintf(tl_out, "\tswitch (_ltl2ba_state_var) {\n");
+
+    for(s = bstates->prv; s != bstates; s = s->prv) {
+        /* accept_all at the end */
+        if(s->id == 0) {
+            accept_all = 1;
+            continue;
+        }
+
+        fprintf(tl_out, "\tcase _ltl2ba_sate_%i:\n", s->id + 1);
+
+        /* There is no transition from this state*/
+        t = s->trans->nxt;
+        if(t == s->trans) {
+            fprintf(tl_out, "\t\tassume(0);\n");
+            continue;
+        }
+
+        /* First transition from the current state */
+        fprintf(tl_out, "\t\tif (choice == 0) {\n");
+        fprintf(tl_out, "\t\t\tassume(");
+        c_print_set(t->pos, t->neg);
+        fprintf(tl_out, ");\n");
+        fprintf(tl_out, "\t\t\t_ltl2ba_sate_var = _ltl2ba_state_%i;\n", t->to->id + 1);
+        fprintf(tl_out, "\t\t}");
+
+        /* Other transition from the current state */
+        for(trans_num = 1, t = s->trans->nxt->nxt; t != s->trans; t = t->nxt, trans_num++) {
+            fprintf(tl_out, " else if (choice == %i) {\n", trans_num);
+            fprintf(tl_out, "\t\t\tassume(");
+            c_print_set(t->pos, t->neg);
+            fprintf(tl_out, ");\n");
+            fprintf(tl_out, "\t\t\t_ltl2ba_sate_var = _ltl2ba_state_%i;\n", t->to->id + 1);
+            fprintf(tl_out, "\t\t}");
+        }
+        fprintf(tl_out, "\n\t\tbreak;\n");
+    }
+    fprintf(tl_out, "\t}\n}\n");
 }
 
 /********************************************************************\
@@ -703,4 +779,5 @@ void mk_buchi()
   }
 
   print_spin_buchi();
+  print_c_buchi();
 }
