@@ -36,7 +36,7 @@
 extern GState **init, *gstates;
 extern struct rusage tr_debut, tr_fin;
 extern struct timeval t_diff;
-extern int tl_verbose, tl_stats, tl_simp_diff, tl_simp_fly, tl_simp_scc,
+extern int tl_verbose, tl_stats, tl_simp_diff, tl_simp_fly, tl_simp_scc, tl_type,
   init_size, *final;
 extern void put_uform(void);
 
@@ -778,6 +778,8 @@ void mk_buchi()
     }
   }
 
-  print_spin_buchi();
-  print_c_buchi();
+  if (tl_type == 1)
+      print_c_buchi();
+  else
+      print_spin_buchi();
 }

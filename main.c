@@ -43,6 +43,7 @@ int tl_fjtofj    = 1; /* 2eme fj */
 int	tl_errs      = 0;
 int	tl_verbose   = 0;
 int	tl_terse     = 0;
+int tl_type      = 0;
 unsigned long	All_Mem = 0;
 
 static char	uform[4096];
@@ -126,6 +127,7 @@ usage(void)
         printf(" -o\t\tdisable (O)n-the-fly simplification\n");
         printf(" -c\t\tdisable strongly (C)onnected components simplification\n");
         printf(" -a\t\tdisable trick in (A)ccepting conditions\n");
+        printf(" -t\t\t(T)ype of the output : c or spin. Default : spin\n");
 	
         alldone(1);
 }
@@ -173,6 +175,8 @@ main(int argc, char *argv[])
                 case 'l': tl_simp_log = 0; break;
                 case 'd': tl_verbose = 1; break;
                 case 's': tl_stats = 1; break;
+                case 't': tl_type = strcmp(argv[2], "c") == 0;
+                    argc--; argv++; break;
                 default : usage(); break;
                 }
                 argc--, argv++;
