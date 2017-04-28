@@ -661,6 +661,11 @@ void print_c_buchi() {
             fprintf(tl_out, "\t\t\t_ltl2ba_sate_var = _ltl2ba_state_%i;\n", t->to->id + 1);
             fprintf(tl_out, "\t\t}");
         }
+        /* Prune other choices */
+        fprintf(tl_out, " else {\n", trans_num);
+        fprintf(tl_out, "\t\t\tassume(0);\n");
+        fprintf(tl_out, "\t\t}");
+
         fprintf(tl_out, "\n\t\tbreak;\n");
     }
     fprintf(tl_out, "\t}\n}\n");
