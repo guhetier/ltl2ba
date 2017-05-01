@@ -43,7 +43,7 @@ int tl_fjtofj    = 1; /* 2eme fj */
 int	tl_errs      = 0;
 int	tl_verbose   = 0;
 int	tl_terse     = 0;
-int tl_type      = 0;
+int tl_type      = 0; /* language of the output. 0 for Promela, 1 for C */
 unsigned long	All_Mem = 0;
 
 static char	uform[4096];
@@ -63,6 +63,10 @@ alldone(int estatus)
         exit(estatus);
 }
 
+/* Copy the file `src` at the destination `tgt`.
+   The `tgt` file is not closed.
+   Return a pointer to the `tgt` file.
+*/
 FILE *
 cpyfile(char *src, char *tgt)
 {       FILE *inp, *out;
@@ -80,6 +84,10 @@ cpyfile(char *src, char *tgt)
         return out;
 }
 
+/* Safe malloc function.
+   Fail if it is not possible to allocate the memory,
+   initialize the allocated memory to 0.
+*/
 char *
 emalloc(int n)
 {       char *tmp;
@@ -90,6 +98,7 @@ emalloc(int n)
         return tmp;
 }
 
+/* Provide characters to the parser */
 int
 tl_Getchar(void)
 {
@@ -135,9 +144,11 @@ usage(void)
 int
 tl_main(int argc, char *argv[])
 {       int i;
+    /* All options except "-f" should have been already treated. */
 	while (argc > 1 && argv[1][0] == '-')
 	{	switch (argv[1][1]) {
 		case 'f':	argc--; argv++;
+        /* Replace useless characters with spaces in the formula */
 				for (i = 0; i < argv[1][i]; i++)
 				{	if (argv[1][i] == '\t'
 					||  argv[1][i] == '\"'
@@ -162,6 +173,7 @@ main(int argc, char *argv[])
 {	int i;
 	tl_out = stdout;
 
+  /* Parse options */
 	while (argc > 1 && argv[1][0] == '-')
         {       switch (argv[1][1]) {
                 case 'F': ltl_file = (char **) (argv+2);
@@ -182,8 +194,12 @@ main(int argc, char *argv[])
                 argc--, argv++;
         }
 
-	if(!ltl_file && !add_ltl) usage();
+  /* Show help if no ltl formula is provided */
+	if(!ltl_file && !add_ltl)
+      usage();
 
+  /* If a ltl formula is provided in a file, read it and put it
+   in the ltl_file variable (instead of the filename) */
         if (ltl_file)
         {       char formula[4096];
                 add_ltl = ltl_file-2; add_ltl[1][1] = 'f';
@@ -196,6 +212,8 @@ main(int argc, char *argv[])
                 tl_out = stdout;
                 *ltl_file = (char *) formula;
         }
+        /* If an additional filename is provided, copy its content in a file `_tmp2_`
+           and write the output in `_tmp2_` instead of the standard output. */
         if (argc > 1)
         {       char cmd[128], out2[64];
                 strcpy(out1, "_tmp1_");

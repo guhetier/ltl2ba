@@ -560,6 +560,7 @@ tl_formula(void)
 	return tl_level(1);	/* 2 precedence levels, 1 and 0 */	
 }
 
+/* Parse the formula into a tree, then call trans on it */
 void
 tl_parse(void)
 {       Node *n = tl_formula();
