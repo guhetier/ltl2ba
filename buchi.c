@@ -29,6 +29,8 @@
 
 #include "ltl2ba.h"
 
+void print_c_buchi();
+
 /********************************************************************\
 |*              Structures and shared variables                     *|
 \********************************************************************/
@@ -594,79 +596,6 @@ void print_spin_buchi() {
   fprintf(tl_out, "}\n");
 }
 
-/* Print a set of predicates */
-void c_print_set(int* pos, int* neg) {
-    spin_print_set(pos, neg);
-}
-
-void print_c_buchi() {
-    BTrans *t;
-    BState *s;
-    int accept_all = 0, trans_num;
-
-    fprintf(tl_out, "/* ");
-    put_uform();
-    fprintf(tl_out, " */\n");
-    fprintf(tl_out, "void\ntrans() {\n");
-
-    /* If the automaton is empty (no states) */
-    if (bstates->nxt == bstates) {
-        fprintf(tl_out, "\tassume(0);\n}\n");
-        return;
-    }
-
-    fprintf(tl_out, "\tint choice = NON_DET();\n");
-    fprintf(tl_out, "\tswitch (_ltl2ba_state_var) {\n");
-
-    for(s = bstates->prv; s != bstates; s = s->prv) {
-
-        fprintf(tl_out, "\tcase _ltl2ba_sate_%i_%i:\n", s->id + 1, s->final);
-
-        /* The state of id 0 is an accepting well.
-           Every word will be accepted and the state will no longer change
-        */
-        if(s->id == 0) {
-            fprintf(tl_out, "\t\tassert(false, \"Error sure\");\n");
-            fprintf(tl_out, "\t\tbreak;\n");
-            continue;
-        }
-
-        /* There is no transition from this state */
-        t = s->trans->nxt;
-        if(t == s->trans) {
-            fprintf(tl_out, "\t\tassume(0);\n");
-            continue;
-        }
-
-        /* First transition from the current state */
-        fprintf(tl_out, "\t\tif (choice == 0) {\n");
-        fprintf(tl_out, "\t\t\tassume(");
-        c_print_set(t->pos, t->neg);
-        fprintf(tl_out, ");\n");
-        fprintf(tl_out, "\t\t\t_ltl2ba_sate_var = _ltl2ba_state_%i_%i;\n",
-                t->to->id + 1, t->to->final);
-        fprintf(tl_out, "\t\t}");
-
-        /* Other transition from the current state */
-        for(trans_num = 1, t = s->trans->nxt->nxt; t != s->trans; t = t->nxt, trans_num++) {
-            fprintf(tl_out, " else if (choice == %i) {\n", trans_num);
-            fprintf(tl_out, "\t\t\tassume(");
-            c_print_set(t->pos, t->neg);
-            fprintf(tl_out, ");\n");
-            fprintf(tl_out, "\t\t\t_ltl2ba_sate_var = _ltl2ba_state_%i_%i;\n",
-                    t->to->id + 1, t->to->final);
-            fprintf(tl_out, "\t\t}");
-        }
-        /* Prune other choices */
-        fprintf(tl_out, " else {\n", trans_num);
-        fprintf(tl_out, "\t\t\tassume(0);\n");
-        fprintf(tl_out, "\t\t}");
-
-        fprintf(tl_out, "\n\t\tbreak;\n");
-    }
-
-    fprintf(tl_out, "\t}\n}\n");
-}
 
 /********************************************************************\
 |*                       Main method                                *|
