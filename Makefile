@@ -31,7 +31,7 @@ CC=gcc
 CFLAGS= -O3 -ansi -DNXT
 
 LTL2BA=	parse.o lex.o main.o trans.o buchi.o set.o \
-	mem.o rewrt.o cache.o alternating.o generalized.o
+	mem.o rewrt.o cache.o alternating.o generalized.o c_printer.o
 
 ltl2ba:	$(LTL2BA)
 	$(CC) $(CFLAGS) -o ltl2ba $(LTL2BA)
