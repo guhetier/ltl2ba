@@ -11,7 +11,12 @@ extern FILE* tl_out;
 extern int accept;
 extern BState *bstates;
 
+extern int sym_id, sym_size, mod;
+extern char** sym_table;
+
 int n_ba_state; /* Number of states in the ba */
+BScc *scc_stack; /* Stack used for automaton explorations */
+_Bool *stutter_acceptance_table;
 
 /* Count the number of state in a BA */
 int
@@ -23,10 +28,159 @@ count_ba_states() {
     return n;
 }
 
-/* Print a set of predicates */
+/* Return true if the transition t can be used with
+   a valuation prop_state of the atomic propositions
+*/
+_Bool
+is_transition_valid(BTrans *t, int *prop_state) {
+    int i;
+    for (i = 0; i < sym_size; i++) {
+        if ((t->pos[i] & prop_state[i]) != t->pos[i])
+            return 0;
+        if ((t->neg[i] & !prop_state[i]) != t->neg[i])
+            return 0;
+    }
+    return 1;
+}
+
+/* Determine whether the stutter extension of a word is accepted,
+   given a sate and a final program state (i.e a predicate valuation).
+   WARNING : Use of the incoming field, does not anymore represent the scc...
+   Explore the automaton using only the transition compatibles with the final program state.
+   When a cycle containing a final state is found, mark all states leading to it
+   as stutter accepting.
+*/
+void
+stutter_acceptance_state(BState *s, int *stutter_state) {
+
+    BTrans *t;
+    BScc *c;
+    BScc *scc = (BScc *)tl_emalloc(sizeof(BScc));
+
+    /* Mark the sate and add it in the stack */
+    s->incoming = 1;
+    scc->bstate = s;
+    scc->nxt = scc_stack;
+
+    /* Invariant : It is possible to reach the current sate from
+       every sate on the stack */
+    scc_stack = scc;
+
+    /* Visit every successors reachable with the program state */
+    for (t = s->trans->nxt; t != s->trans; t = t->nxt) {
+        if (! is_transition_valid(t, stutter_state))
+            continue;
+
+        /* The successor have not been reached already */
+        if (t->to->incoming == 0) {
+            stutter_acceptance_state(t->to, stutter_state);
+            s->incoming = max(t->to->incoming, s->incoming);
+        /* The successor is currently being visited : we found a cycle */
+        } else if (t->to->incoming == 1) {
+            /* Search for a final state in the cycle */
+            _Bool final_cycle = 0;
+            for(c = scc_stack; c != 0; c = c->nxt) {
+                if (c->bstate->final == accept)
+                    final_cycle = 1;
+                if (c->bstate == s)
+                    break;
+            }
+            /* If there is a cycle, marks all state in the path as accepting */
+            if (final_cycle) {
+                for(c = scc_stack; c != 0; c = c->nxt) {
+                    c->bstate->incoming = 3;
+                }
+                scc_stack = 0;
+            }
+        /* The successor has already been visited */
+        } else {
+            /* If the successor lead to a final cycle, marks all the path as accepting */
+            if (t->to->incoming == 3) {
+                for(c = scc_stack->nxt; c != 0; c = c->nxt) {
+                    c->bstate->incoming = 3;
+                }
+                scc_stack = 0;
+            }
+        }
+    }
+
+    /* If no final cycle have been found, there is none from this state */
+    if (s->incoming == 1) {
+        s->incoming = 2;
+        scc_stack = scc_stack->nxt;
+    }
+}
+
+/* Compute the stutter acceptance for all automaton state and all final
+   program state */
+void
+stutter_acceptance() {
+    BState *s;
+    scc_stack = 0;
+    int i, k;
+    int stutter_state[sym_size];
+
+    if (sym_size > 1)
+        fatal("c_printer, stutter_acceptance", "sym_size > 1 : too many sates for an exploration");
+
+    if(bstates == bstates->nxt)
+        return;
+
+    for (k = 0; k < (1 << sym_id); k++) {
+        stutter_state[0] = k;
+
+        /* Unmark all states */
+        for (s = bstates->nxt; s != bstates; s = s->nxt)
+            s->incoming = 0;
+
+        /* Explore the graph from every state */
+        for (s = bstates->nxt; s != bstates; s = s->nxt) {
+            if (s->incoming == 0)
+                stutter_acceptance_state(s, stutter_state);
+        }
+
+        /* Collect the results */
+        for (s = bstates->nxt, i=0; s != bstates; s = s->nxt, i++) {
+            if (s->incoming == 3)
+                stutter_acceptance_table[k * n_ba_state + i] = 1;
+            else
+                stutter_acceptance_table[k * n_ba_state + i] = 0;
+        }
+    }
+}
+
+/* Print the condition of a transition */
 void
 c_print_set(int* pos, int* neg) {
-    spin_print_set(pos, neg);
+
+    int i, j, start = 1;
+    for(i = 0; i < sym_size; i++)
+        for(j = 0; j < mod; j++) {
+            if(pos[i] & (1 << j)) {
+                if(!start)
+                    fprintf(tl_out, " && ");
+                fprintf(tl_out, "_ltl2ba_atomic_%s", sym_table[mod * i + j]);
+                start = 0;
+            }
+            if(neg[i] & (1 << j)) {
+                if(!start)
+                    fprintf(tl_out, " && ");
+                fprintf(tl_out, "!_ltl2ba_atomic_%s", sym_table[mod * i + j]);
+                start = 0;
+            }
+        }
+    if(start)
+        fprintf(tl_out, "1");
+}
+
+/* Print variables for each atomic predicate */
+void
+print_c_atomics_definition() {
+    int i;
+    for (i = 0; i < sym_id; i++) {
+        fprintf(tl_out, "_Bool _ltl2ba_atomic_%s = 0;\n", sym_table[i]);
+    }
+    fprintf(tl_out, "\n");
 }
 
 /* Print an enumeration containing the ba states */
@@ -174,16 +328,51 @@ print_c_surely_reject_sate_table() {
 }
 
 void
+print_c_stutter_acceptance_table() {
+    BState *s;
+    int i, k;
+    _Bool firstline = 1, first;
+
+    fprintf(tl_out, "_Bool _ltl2ba_stutter_accept[%i][%i] = {\n", n_ba_state, 1 << sym_id);
+
+    /* Other sates */
+    for (s = bstates->prv, i = n_ba_state - 1; s != bstates; s = s->prv, i--) {
+        if (firstline) {
+            fprintf(tl_out, "\t{");
+            firstline = 0;
+        } else {
+            fprintf(tl_out, ",\n\t{");
+        }
+        first = 1;
+        for (k = 0; k < (1 << sym_id); k++)
+            if (first) {
+                fprintf(tl_out, "%i", stutter_acceptance_table[k * n_ba_state + i]);
+                first = 0;
+            } else {
+                fprintf(tl_out, ", %i", stutter_acceptance_table[k * n_ba_state + i]);
+            }
+        fprintf(tl_out, "}");
+    }
+
+    fprintf(tl_out, "\n};\n");
+}
+
+void
 print_c_buchi() {
+
     n_ba_state = count_ba_states();
+    stutter_acceptance_table = (_Bool *)tl_emalloc(n_ba_state * (1 << sym_id) * sizeof(_Bool));
+    stutter_acceptance();
 
     BTrans *t;
     BState *s;
 
     fprintf(tl_out, "/* ");
     put_uform();
-    fprintf(tl_out, " */\n");
+    fprintf(tl_out, " */\n\n");
 
+    print_c_atomics_definition();
+    fprintf(tl_out, "\n");
     print_c_states_definition();
 
     /* Declare and initialize the global variable that will maintain the state
@@ -204,15 +393,8 @@ print_c_buchi() {
     */
     print_c_surely_reject_sate_table();
 
-    /****** Print the array of stutter acceptance *****/
-    fprintf(tl_out, "_Bool _ltl2ba_stutter_accept[%i][%i] = {\n", n_ba_state, 0/*TODO : program state count*/);
-    for (s = bstates->prv; s != bstates; s = s->prv) {
-        if (0 /* TODO */)
-            fprintf(tl_out, "\t1,\n");
-        else
-            fprintf(tl_out, "\t0,\n");
-    }
-    fprintf(tl_out, "\t};\n");
+    /* TODO: still some errors */
+    print_c_stutter_acceptance_table();
 
     /****** Print the conclusion function ******/
 

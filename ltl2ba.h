@@ -246,3 +246,4 @@ typedef Node	*Nodeptr;
 #define Assert(x, y)	{ if (!(x)) { tl_explain(y); \
 			  Fatal(": assertion failed\n",(char *)0); } }
 #define min(x,y)        ((x<y)?x:y)
+#define max(x,y)        ((x>y)?x:y)
