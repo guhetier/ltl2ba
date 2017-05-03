@@ -74,8 +74,12 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
         /* The successor have not been reached already */
         if (t->to->incoming == 0) {
             stutter_acceptance_state(t->to, stutter_state);
-            if (t->to->incoming == 3)
+            /* If the successor is stutter-accepted */
+            if (t->to->incoming == 3) {
                 s->incoming = 3;
+                scc_stack = scc_stack->nxt;
+                return;
+            }
         /* The successor is currently being visited : we found a cycle */
         } else if (t->to->incoming == 1) {
             /* Search for a final state in the cycle */
@@ -86,21 +90,20 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
                 if (c->bstate == t->to)
                     break;
             }
-            /* If there is a cycle, marks all state in the path as accepting */
+            /* If there is final sate in the cycle, all the sate in the cycle are
+               accepted. We mark the current one, others will be marked recursively */
             if (final_cycle) {
-                for(c = scc_stack; c != 0; c = c->nxt) {
-                    c->bstate->incoming = 3;
-                }
-                scc_stack = 0;
+                s->incoming = 3;
+                scc_stack = scc_stack->nxt;
+                return;
             }
         /* The successor has already been visited */
         } else {
-            /* If the successor lead to a final cycle, marks all the path as accepting */
+            /* If the successor lead to a final cycle, marks all the sate as accepting */
             if (t->to->incoming == 3) {
-                for(c = scc_stack; c != 0; c = c->nxt) {
-                    c->bstate->incoming = 3;
-                }
-                scc_stack = 0;
+                s->incoming = 3;
+                scc_stack = scc_stack->nxt;
+                return;
             }
         }
     }
