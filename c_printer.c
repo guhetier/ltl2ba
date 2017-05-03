@@ -37,7 +37,7 @@ is_transition_valid(BTrans *t, int *prop_state) {
     for (i = 0; i < sym_size; i++) {
         if ((t->pos[i] & prop_state[i]) != t->pos[i])
             return 0;
-        if ((t->neg[i] & !prop_state[i]) != t->neg[i])
+        if ((t->neg[i] & ~prop_state[i]) != t->neg[i])
             return 0;
     }
     return 1;
@@ -74,7 +74,8 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
         /* The successor have not been reached already */
         if (t->to->incoming == 0) {
             stutter_acceptance_state(t->to, stutter_state);
-            s->incoming = max(t->to->incoming, s->incoming);
+            if (t->to->incoming == 3)
+                s->incoming = 3;
         /* The successor is currently being visited : we found a cycle */
         } else if (t->to->incoming == 1) {
             /* Search for a final state in the cycle */
@@ -82,7 +83,7 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
             for(c = scc_stack; c != 0; c = c->nxt) {
                 if (c->bstate->final == accept)
                     final_cycle = 1;
-                if (c->bstate == s)
+                if (c->bstate == t->to)
                     break;
             }
             /* If there is a cycle, marks all state in the path as accepting */
@@ -96,7 +97,7 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
         } else {
             /* If the successor lead to a final cycle, marks all the path as accepting */
             if (t->to->incoming == 3) {
-                for(c = scc_stack->nxt; c != 0; c = c->nxt) {
+                for(c = scc_stack; c != 0; c = c->nxt) {
                     c->bstate->incoming = 3;
                 }
                 scc_stack = 0;
