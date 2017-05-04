@@ -44,7 +44,7 @@ is_transition_valid(BTrans *t, int *prop_state) {
 }
 
 /* Determine whether the stutter extension of a word is accepted,
-   given a sate and a final program state (i.e a predicate valuation).
+   given a state and a final program state (i.e a predicate valuation).
    WARNING : Use of the incoming field, does not anymore represent the scc...
    Explore the automaton using only the transition compatibles with the final program state.
    When a cycle containing a final state is found, mark all states leading to it
@@ -57,13 +57,13 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
     BScc *c;
     BScc *scc = (BScc *)tl_emalloc(sizeof(BScc));
 
-    /* Mark the sate and add it in the stack */
+    /* Mark the state and add it in the stack */
     s->incoming = 1;
     scc->bstate = s;
     scc->nxt = scc_stack;
 
-    /* Invariant : It is possible to reach the current sate from
-       every sate on the stack */
+    /* Invariant : It is possible to reach the current state from
+       every state on the stack */
     scc_stack = scc;
 
     /* Visit every successors reachable with the program state */
@@ -90,7 +90,7 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
                 if (c->bstate == t->to)
                     break;
             }
-            /* If there is final sate in the cycle, all the sate in the cycle are
+            /* If there is final state in the cycle, all the state in the cycle are
                accepted. We mark the current one, others will be marked recursively */
             if (final_cycle) {
                 s->incoming = 3;
@@ -99,7 +99,7 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
             }
         /* The successor has already been visited */
         } else {
-            /* If the successor lead to a final cycle, marks all the sate as accepting */
+            /* If the successor lead to a final cycle, marks all the state as accepting */
             if (t->to->incoming == 3) {
                 s->incoming = 3;
                 scc_stack = scc_stack->nxt;
@@ -125,7 +125,7 @@ stutter_acceptance() {
     int stutter_state[sym_size];
 
     if (sym_size > 1)
-        fatal("c_printer, stutter_acceptance", "sym_size > 1 : too many sates for an exploration");
+        fatal("c_printer, stutter_acceptance", "sym_size > 1 : too many states for an exploration");
 
     if(bstates == bstates->nxt)
         return;
@@ -195,7 +195,7 @@ print_c_states_definition() {
     fprintf(tl_out, "typedef enum {\n");
     for (s = bstates->prv; s != bstates; s = s->prv)
         fprintf(tl_out, "\t_ltl2ba_state_%i_%i,\n", s->id + 1, s->final);
-    fprintf(tl_out, "} _ltl2ba_sate;\n\n");
+    fprintf(tl_out, "} _ltl2ba_state;\n\n");
 }
 
 /* Print the transition function of the ba */
@@ -216,7 +216,7 @@ print_c_transition_function() {
     fprintf(tl_out, "\tswitch (_ltl2ba_state_var) {\n");
 
     for(s = bstates->prv; s != bstates; s = s->prv) {
-        fprintf(tl_out, "\tcase _ltl2ba_sate_%i_%i:\n", s->id + 1, s->final);
+        fprintf(tl_out, "\tcase _ltl2ba_state_%i_%i:\n", s->id + 1, s->final);
 
         /* The state of id 0 is an accepting well.
            Every word will be accepted and the state will no longer change
@@ -239,7 +239,7 @@ print_c_transition_function() {
         fprintf(tl_out, "\t\t\tassume(");
         c_print_set(t->pos, t->neg);
         fprintf(tl_out, ");\n");
-        fprintf(tl_out, "\t\t\t_ltl2ba_sate_var = _ltl2ba_state_%i_%i;\n",
+        fprintf(tl_out, "\t\t\t_ltl2ba_state_var = _ltl2ba_state_%i_%i;\n",
                 t->to->id + 1, t->to->final);
         fprintf(tl_out, "\t\t}");
 
@@ -250,7 +250,7 @@ print_c_transition_function() {
             fprintf(tl_out, "\t\t\tassume(");
             c_print_set(t->pos, t->neg);
             fprintf(tl_out, ");\n");
-            fprintf(tl_out, "\t\t\t_ltl2ba_sate_var = _ltl2ba_state_%i_%i;\n",
+            fprintf(tl_out, "\t\t\t_ltl2ba_state_var = _ltl2ba_state_%i_%i;\n",
                     t->to->id + 1, t->to->final);
             fprintf(tl_out, "\t\t}");
         }
@@ -269,7 +269,7 @@ print_c_transition_function() {
    every word will be accepted (whatever the suffix)
 */
 void
-print_c_surely_accept_sate_table() {
+print_c_surely_accept_state_table() {
     BState *s;
 
     fprintf(tl_out, "_Bool _ltl2ba_surely_accept[%i] = {", n_ba_state);
@@ -305,7 +305,7 @@ print_c_surely_accept_sate_table() {
    every word will be rejected (whatever the suffix)
 */
 void
-print_c_surely_reject_sate_table() {
+print_c_surely_reject_state_table() {
     BState *s;
 
     fprintf(tl_out, "_Bool _ltl2ba_surely_reject[%i] = {", n_ba_state);
@@ -324,7 +324,7 @@ print_c_surely_reject_sate_table() {
     for (s = s->prv; s != bstates; s = s->prv) {
         /* TODO : is this true ??? It is the case only if the automaton is in reduced form... */
         /* As the automaton is in reduced form,
-           no sate will reject every suffix (elsewhere, this sate would have been removed
+           no state will reject every suffix (elsewhere, this state would have been removed
            from the automaton) */
         fprintf(tl_out, ", 0");
     }
@@ -339,7 +339,7 @@ print_c_stutter_acceptance_table() {
 
     fprintf(tl_out, "_Bool _ltl2ba_stutter_accept[%i][%i] = {\n", n_ba_state, 1 << sym_id);
 
-    /* Other sates */
+    /* Other states */
     for (s = bstates->prv, i = n_ba_state - 1; s != bstates; s = s->prv, i--) {
         if (firstline) {
             fprintf(tl_out, "\t{");
@@ -361,15 +361,50 @@ print_c_stutter_acceptance_table() {
     fprintf(tl_out, "\n};\n");
 }
 
+/* Print a C function that build a program state id from the value of atomic predicates */
+void print_c_sym_to_id_function() {
+
+    int i;
+    fprintf(tl_out, "unsigned int\n");
+    fprintf(tl_out, "_ltl2ba_sym_to_id() {\n");
+
+    fprintf(tl_out, "\tunsigned int id = 0;\n\n");
+
+    for (i = 0; i < sym_id; i++) {
+        fprintf(tl_out, "\tid |= (_ltl2ba_atomic_%s << %i);\n", sym_table[i], i);
+    }
+    fprintf(tl_out, "\treturn id;\n");
+    fprintf(tl_out, "};\n\n");
+}
+
+void
+print_c_conclusion_function() {
+
+    fprintf(tl_out, "void\n");
+    fprintf(tl_out, "_ltl2ba_result() {\n");
+
+    fprintf(tl_out, "\t_Bool reject_sure = _ltl2ba_surely_reject[_ltl2ba_state_var];\n");
+    fprintf(tl_out, "\tassume(!reject_sure);\n\n");
+
+    fprintf(tl_out, "\t_Bool accept_sure = _ltl2ba_surely_accept[_ltl2ba_state_var];\n");
+    fprintf(tl_out, "\tassert(!accept_sure, \"ERROR SURE\");\n\n");
+
+
+    fprintf(tl_out, "\tunsigned int id = _ltl2ba_sym_to_id();\n");
+    fprintf(tl_out, "\t_Bool accept_stutter = _ltl2ba_stutter_accept[_ltl2ba_state_var][id];\n");
+    fprintf(tl_out, "\tassert(!accept_stutter, \"ERROR MAYBE\");\n");
+
+    fprintf(tl_out, "\tassert(accept_stutter, \"VALID MAYBE\");\n");
+
+    fprintf(tl_out, "}\n\n");
+}
+
 void
 print_c_buchi() {
 
     n_ba_state = count_ba_states();
     stutter_acceptance_table = (_Bool *)tl_emalloc(n_ba_state * (1 << sym_id) * sizeof(_Bool));
     stutter_acceptance();
-
-    BTrans *t;
-    BState *s;
 
     fprintf(tl_out, "/* ");
     put_uform();
@@ -381,26 +416,27 @@ print_c_buchi() {
 
     /* Declare and initialize the global variable that will maintain the state
        of the automaton.
-       The initial sate has always an id of -1 (+1 in the name) and a final of 0.
+       The initial state has always an id of -1 (+1 in the name) and a final of 0.
     */
-    fprintf(tl_out, "_ltl2ba_state _ltl2ba_state_var = _ltl2ba_sate_0_0;\n\n");
+    fprintf(tl_out, "_ltl2ba_state _ltl2ba_state_var = _ltl2ba_state_0_0;\n\n");
 
     print_c_transition_function();
 
     /* TODO: Surely accepting states are currently built under the assumption
        the automaton is in reduced form
     */
-    print_c_surely_accept_sate_table();
+    print_c_surely_accept_state_table();
 
     /* TODO: Surely rejecting states are currently built under the assumption
        the automaton is in reduced form
     */
-    print_c_surely_reject_sate_table();
+    print_c_surely_reject_state_table();
 
-    /* TODO: still some errors */
+    /* TODO: Under the assumption there is no more than sizeof(int)*8 symbols */
     print_c_stutter_acceptance_table();
 
-    /****** Print the conclusion function ******/
-
+    /* Print the conclusion function */
+    print_c_sym_to_id_function();
+    print_c_conclusion_function();
 
 }
