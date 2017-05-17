@@ -14,6 +14,10 @@ extern BState *bstates;
 extern int sym_id, sym_size, mod;
 extern char** sym_table;
 
+const char* assume_str = "__ESBMC_assume";
+const char* assert_str = "__ESBMC_assert";
+const char* nondet_str = "nondet_uint";
+
 int n_ba_state; /* Number of states in the ba */
 BScc *scc_stack; /* Stack used for automaton explorations */
 _Bool *stutter_acceptance_table;
@@ -208,11 +212,11 @@ print_c_transition_function() {
 
     /* If the automaton is empty (no states) */
     if (bstates->nxt == bstates) {
-        fprintf(tl_out, "\t__ESBMC_assume(0);\n}\n");
+        fprintf(tl_out, "\t%s(0);\n}\n", assume_str);
         return;
     }
 
-    fprintf(tl_out, "\tint choice = nondet_uint();\n");
+    fprintf(tl_out, "\tint choice = %s();\n", nondet_str);
     fprintf(tl_out, "\tswitch (_ltl2ba_state_var) {\n");
 
     for(s = bstates->prv; s != bstates; s = s->prv) {
@@ -222,7 +226,7 @@ print_c_transition_function() {
            Every word will be accepted and the state will no longer change
         */
         if(s->id == 0) {
-            fprintf(tl_out, "\t\t__ESBMC_assert(false, \"Error sure\");\n");
+            fprintf(tl_out, "\t\t%s(false, \"Error sure\");\n", assert_str);
             fprintf(tl_out, "\t\tbreak;\n");
             continue;
         }
@@ -230,13 +234,13 @@ print_c_transition_function() {
         /* If there is no transition from this state */
         t = s->trans->nxt;
         if(t == s->trans) {
-            fprintf(tl_out, "\t\t__ESBMC_assume(0);\n");
+            fprintf(tl_out, "\t\t%s(0);\n", assume_str);
             continue;
         }
 
         /* First transition from the current state */
         fprintf(tl_out, "\t\tif (choice == 0) {\n");
-        fprintf(tl_out, "\t\t\t__ESBMC_assume(");
+        fprintf(tl_out, "\t\t\t%s(", assume_str);
         c_print_set(t->pos, t->neg);
         fprintf(tl_out, ");\n");
         fprintf(tl_out, "\t\t\t_ltl2ba_state_var = _ltl2ba_state_%i_%i;\n",
@@ -247,7 +251,7 @@ print_c_transition_function() {
         int trans_num;
         for(trans_num = 1, t = s->trans->nxt->nxt; t != s->trans; t = t->nxt, trans_num++) {
             fprintf(tl_out, " else if (choice == %i) {\n", trans_num);
-            fprintf(tl_out, "\t\t\t__ESBMC_assume(");
+            fprintf(tl_out, "\t\t\t%s(", assume_str);
             c_print_set(t->pos, t->neg);
             fprintf(tl_out, ");\n");
             fprintf(tl_out, "\t\t\t_ltl2ba_state_var = _ltl2ba_state_%i_%i;\n",
@@ -256,7 +260,7 @@ print_c_transition_function() {
         }
         /* Prune other choices */
         fprintf(tl_out, " else {\n");
-        fprintf(tl_out, "\t\t\t__ESBMC_assume(0);\n");
+        fprintf(tl_out, "\t\t\t%s(0);\n", assume_str);
         fprintf(tl_out, "\t\t}");
 
         fprintf(tl_out, "\n\t\tbreak;\n");
@@ -384,17 +388,17 @@ print_c_conclusion_function() {
     fprintf(tl_out, "_ltl2ba_result() {\n");
 
     fprintf(tl_out, "\t_Bool reject_sure = _ltl2ba_surely_reject[_ltl2ba_state_var];\n");
-    fprintf(tl_out, "\t__ESBMC_assume(!reject_sure);\n\n");
+    fprintf(tl_out, "\t%s(!reject_sure);\n\n", assume_str);
 
     fprintf(tl_out, "\t_Bool accept_sure = _ltl2ba_surely_accept[_ltl2ba_state_var];\n");
-    fprintf(tl_out, "\t__ESBMC_assert(!accept_sure, \"ERROR SURE\");\n\n");
+    fprintf(tl_out, "\t%s(!accept_sure, \"ERROR SURE\");\n\n", assert_str);
 
 
     fprintf(tl_out, "\tunsigned int id = _ltl2ba_sym_to_id();\n");
     fprintf(tl_out, "\t_Bool accept_stutter = _ltl2ba_stutter_accept[_ltl2ba_state_var][id];\n");
-    fprintf(tl_out, "\t__ESBMC_assert(!accept_stutter, \"ERROR MAYBE\");\n");
+    fprintf(tl_out, "\t%s(!accept_stutter, \"VALID MAYBE\");\n", assert_str);
 
-    fprintf(tl_out, "\t__ESBMC_assert(accept_stutter, \"VALID MAYBE\");\n");
+    fprintf(tl_out, "\t%s(accept_stutter, \"ERROR MAYBE\");\n", assert_str);
 
     fprintf(tl_out, "}\n\n");
 }
