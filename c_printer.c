@@ -396,9 +396,9 @@ print_c_conclusion_function() {
 
     fprintf(tl_out, "\tunsigned int id = _ltl2ba_sym_to_id();\n");
     fprintf(tl_out, "\t_Bool accept_stutter = _ltl2ba_stutter_accept[_ltl2ba_state_var][id];\n");
-    fprintf(tl_out, "\t%s(!accept_stutter, \"VALID MAYBE\");\n", assert_str);
+    fprintf(tl_out, "\t%s(accept_stutter, \"VALID MAYBE\");\n", assert_str);
 
-    fprintf(tl_out, "\t%s(accept_stutter, \"ERROR MAYBE\");\n", assert_str);
+    fprintf(tl_out, "\t%s(!accept_stutter, \"ERROR MAYBE\");\n", assert_str);
 
     fprintf(tl_out, "}\n\n");
 }
