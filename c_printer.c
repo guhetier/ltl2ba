@@ -226,7 +226,7 @@ print_c_transition_function() {
            Every word will be accepted and the state will no longer change
         */
         if(s->id == 0) {
-            fprintf(tl_out, "\t\t%s(false, \"Error sure\");\n", assert_str);
+            fprintf(tl_out, "\t\t%s(0, \"Error sure\");\n", assert_str);
             fprintf(tl_out, "\t\tbreak;\n");
             continue;
         }
