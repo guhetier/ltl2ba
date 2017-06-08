@@ -89,7 +89,7 @@ stutter_acceptance_state(BState *s, int *stutter_state) {
             /* Search for a final state in the cycle */
             _Bool final_cycle = 0;
             for(c = scc_stack; c != 0; c = c->nxt) {
-                if (c->bstate->final == accept)
+                if (c->bstate->final == accept || c->bstate->id == 0)
                     final_cycle = 1;
                 if (c->bstate == t->to)
                     break;
@@ -393,12 +393,12 @@ print_c_conclusion_function() {
     fprintf(tl_out, "\t_Bool accept_sure = _ltl2ba_surely_accept[_ltl2ba_state_var];\n");
     fprintf(tl_out, "\t%s(!accept_sure, \"ERROR SURE\");\n\n", assert_str);
 
-
     fprintf(tl_out, "\tunsigned int id = _ltl2ba_sym_to_id();\n");
     fprintf(tl_out, "\t_Bool accept_stutter = _ltl2ba_stutter_accept[_ltl2ba_state_var][id];\n");
-    fprintf(tl_out, "\t%s(accept_stutter, \"VALID MAYBE\");\n", assert_str);
 
     fprintf(tl_out, "\t%s(!accept_stutter, \"ERROR MAYBE\");\n", assert_str);
+
+    fprintf(tl_out, "\t%s(accept_stutter, \"VALID MAYBE\");\n", assert_str);
 
     fprintf(tl_out, "}\n\n");
 }
