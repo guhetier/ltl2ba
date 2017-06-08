@@ -30,6 +30,7 @@
 #include "ltl2ba.h"
 
 void print_c_buchi();
+void print_json_buchi();
 
 /********************************************************************\
 |*              Structures and shared variables                     *|
@@ -709,8 +710,14 @@ void mk_buchi()
     }
   }
 
-  if (tl_type == 1)
+  switch (tl_type) {
+  case OT_C:
       print_c_buchi();
-  else
+      break;
+  case OT_JSON:
+      print_json_buchi();
+      break;
+  default:
       print_spin_buchi();
+  }
 }

@@ -119,6 +119,7 @@ typedef struct BState {
   struct BTrans *trans;
   struct BState *nxt;
   struct BState *prv;
+  int label; /* State name for printing */
 } BState;
 
 typedef struct GScc {
@@ -247,3 +248,6 @@ typedef Node	*Nodeptr;
 			  Fatal(": assertion failed\n",(char *)0); } }
 #define min(x,y)        ((x<y)?x:y)
 #define max(x,y)        ((x>y)?x:y)
+
+/* Type for output type option */
+typedef enum output_type {OT_SPIN, OT_C, OT_JSON} output_type;

@@ -43,7 +43,7 @@ int tl_fjtofj    = 1; /* 2eme fj */
 int	tl_errs      = 0;
 int	tl_verbose   = 0;
 int	tl_terse     = 0;
-int tl_type      = 0; /* language of the output. 0 for Promela, 1 for C */
+output_type tl_type = 0; /* language of the output */
 unsigned long	All_Mem = 0;
 
 static char	uform[4096];
@@ -136,7 +136,7 @@ usage(void)
         printf(" -o\t\tdisable (O)n-the-fly simplification\n");
         printf(" -c\t\tdisable strongly (C)onnected components simplification\n");
         printf(" -a\t\tdisable trick in (A)ccepting conditions\n");
-        printf(" -t\t\t(T)ype of the output : c or spin. Default : spin\n");
+        printf(" -t\t\t(T)ype of the output : c, spin or json. Default : spin\n");
 	
         alldone(1);
 }
@@ -187,7 +187,13 @@ main(int argc, char *argv[])
                 case 'l': tl_simp_log = 0; break;
                 case 'd': tl_verbose = 1; break;
                 case 's': tl_stats = 1; break;
-                case 't': tl_type = strcmp(argv[2], "c") == 0;
+                case 't':
+                    if (strcmp(argv[2], "c") == 0)
+                        tl_type = OT_C;
+                    else if (strcmp(argv[2], "json") == 0)
+                        tl_type = OT_JSON;
+                    else
+                        tl_type = OT_SPIN;
                     argc--; argv++; break;
                 default : usage(); break;
                 }
