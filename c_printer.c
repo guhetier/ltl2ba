@@ -339,27 +339,15 @@ void
 print_c_stutter_acceptance_table() {
     BState *s;
     int i, k;
-    _Bool firstline = 1, first;
 
-    fprintf(tl_out, "_Bool _ltl2ba_stutter_accept[%i][%i] = {\n", n_ba_state, 1 << sym_id);
+    fprintf(tl_out, "_Bool _ltl2ba_stutter_accept[%i] = {",
+            n_ba_state * (1 << sym_id));
 
     /* Other states */
-    for (s = bstates->prv, i = n_ba_state - 1; s != bstates; s = s->prv, i--) {
-        if (firstline) {
-            fprintf(tl_out, "\t{");
-            firstline = 0;
-        } else {
-            fprintf(tl_out, ",\n\t{");
-        }
-        first = 1;
-        for (k = 0; k < (1 << sym_id); k++)
-            if (first) {
-                fprintf(tl_out, "%i", stutter_acceptance_table[k * n_ba_state + i]);
-                first = 0;
-            } else {
-                fprintf(tl_out, ", %i", stutter_acceptance_table[k * n_ba_state + i]);
-            }
-        fprintf(tl_out, "}");
+    for (k = 0; k < (1 << sym_id); k++) {
+        fprintf(tl_out, "\n\t");
+        for (s = bstates->prv, i = n_ba_state - 1; s != bstates; s = s->prv, i--)
+            fprintf(tl_out, "%i,", stutter_acceptance_table[k * n_ba_state + i]);
     }
 
     fprintf(tl_out, "\n};\n");
@@ -394,7 +382,9 @@ print_c_conclusion_function() {
     fprintf(tl_out, "\t%s(!accept_sure, \"ERROR SURE\");\n\n", assert_str);
 
     fprintf(tl_out, "\tunsigned int id = _ltl2ba_sym_to_id();\n");
-    fprintf(tl_out, "\t_Bool accept_stutter = _ltl2ba_stutter_accept[_ltl2ba_state_var][id];\n");
+    fprintf(tl_out,
+            "\t_Bool accept_stutter = _ltl2ba_stutter_accept[id * %i + _ltl2ba_state_var];\n",
+            n_ba_state);
 
     fprintf(tl_out, "\t%s(!accept_stutter, \"ERROR MAYBE\");\n", assert_str);
 
@@ -420,9 +410,15 @@ print_c_buchi() {
 
     /* Declare and initialize the global variable that will maintain the state
        of the automaton.
-       The initial state has always an id of -1 (+1 in the name) and a final of 0.
+       The initial state has always an id of -1 (+1 in the name).
     */
-    fprintf(tl_out, "_ltl2ba_state _ltl2ba_state_var = _ltl2ba_state_0_0;\n\n");
+    BState *s;
+    for(s = bstates->prv; s != bstates; s = s->prv) {
+        if (s->id == -1) {
+            fprintf(tl_out, "_ltl2ba_state _ltl2ba_state_var = _ltl2ba_state_0_%d;\n\n", s->final);
+            break;
+        }
+    }
 
     print_c_transition_function();
 
