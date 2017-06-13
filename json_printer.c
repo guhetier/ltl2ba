@@ -28,7 +28,7 @@ print_indent() {
 void
 print_json_trans(BTrans *t) {
 
-  int i, j;
+  int i, j, first;
 
   print_indent();
   fprintf(tl_out, "{\n");
@@ -41,10 +41,17 @@ print_json_trans(BTrans *t) {
   /* List of positive predicate on the transition */
   print_indent();
   fprintf(tl_out, "\"pos\": [");
+  first = 1;
   for(i = 0; i < sym_size; i++) {
     for(j = 0; j < mod; j++) {
-      if(t->pos[i] & (1 << j))
-        fprintf(tl_out, "\"%s\", ", sym_table[mod * i + j]);
+      if(t->pos[i] & (1 << j)) {
+        if (first)
+          first = 0;
+        else
+          fprintf(tl_out, ", ");
+
+        fprintf(tl_out, "\"%s\"", sym_table[mod * i + j]);
+      }
     }
   }
   fprintf(tl_out, "],\n");
@@ -52,17 +59,23 @@ print_json_trans(BTrans *t) {
   /* List of positive negative on the transition */
   print_indent();
   fprintf(tl_out, "\"neg\": [");
+  first = 1;
   for(i = 0; i < sym_size; i++) {
     for(j = 0; j < mod; j++) {
-      if(t->neg[i] & (1 << j))
-        fprintf(tl_out, "\"%s\", ", sym_table[mod * i + j]);
+      if(t->neg[i] & (1 << j)) {
+        if (first)
+          first = 0;
+        else
+          fprintf(tl_out, ", ");
+        fprintf(tl_out, "\"%s\"", sym_table[mod * i + j]);
+      }
     }
   }
-  fprintf(tl_out, "],\n");
+  fprintf(tl_out, "]\n");
 
   c_indent--;
   print_indent();
-  fprintf(tl_out, "},\n");
+  fprintf(tl_out, "}");
 
 }
 
@@ -89,16 +102,22 @@ print_json_state(BState *s) {
   fprintf(tl_out, "\"trans\": [\n");
   c_indent++;
 
+  int first = 1;
   for (t = s->trans->nxt; t != s->trans; t = t->nxt) {
+    if (first)
+      first = 0;
+    else
+      fprintf(tl_out, ",\n");
     print_json_trans(t);
   }
 
+  fprintf(tl_out, "\n");
   c_indent--;
   print_indent();
-  fprintf(tl_out, "],\n");
+  fprintf(tl_out, "]\n");
   c_indent--;
   print_indent();
-  fprintf(tl_out, "},\n");
+  fprintf(tl_out, "}");
 
 }
 
@@ -109,6 +128,8 @@ print_json_buchi() {
   BState *s;
   int nb_states = 0;
   int init_id;
+  int i;
+  int first;
 
   /* Give an id to every state and count them */
   for (s = bstates->prv; s != bstates; s = s->prv, nb_states++) {
@@ -125,6 +146,23 @@ print_json_buchi() {
   print_indent();
   fprintf(tl_out, "\"nb_state\": %d,\n", nb_states);
 
+  /* Print the number of symbols */
+  print_indent();
+  fprintf(tl_out, "\"nb_sym\": %d,\n", sym_id);
+
+  /* Print the list of symbols */
+  print_indent();
+  fprintf(tl_out, "\"symbols: [");
+  first = 1;
+  for (i = 0; i < sym_id; i++) {
+    if (first)
+      first = 0;
+    else
+      fprintf(tl_out, ", ");
+    fprintf(tl_out, "\"%s\"", sym_table[i]);
+  }
+  fprintf(tl_out, "],\n");
+
   /* Print the id of the initial state */
   print_indent();
   fprintf(tl_out, "\"init_state\": %d,\n", init_id);
@@ -134,13 +172,19 @@ print_json_buchi() {
   fprintf(tl_out, "\"states\": [\n");
 
   c_indent++;
+  first = 1;
   for (s = bstates->prv; s != bstates; s = s->prv) {
+    if (first)
+      first = 0;
+    else
+      fprintf(tl_out, ",\n");
     print_json_state(s);
   }
 
+  fprintf(tl_out, "\n");
   c_indent--;
   print_indent();
-  fprintf(tl_out, "],\n");
+  fprintf(tl_out, "]\n");
   c_indent--;
   print_indent();
   fprintf(tl_out, "}\n");
