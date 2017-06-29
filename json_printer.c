@@ -152,7 +152,7 @@ print_json_buchi() {
 
   /* Print the list of symbols */
   print_indent();
-  fprintf(tl_out, "\"symbols: [");
+  fprintf(tl_out, "\"symbols\": [");
   first = 1;
   for (i = 0; i < sym_id; i++) {
     if (first)
