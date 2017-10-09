@@ -1,3 +1,15 @@
+This is yet another version of LTL2BA, with additionnal output formats :
+
+- output the automaton in Promela (LTL2BA default behaviour)
+- output the automaton in C (use assertions and assumptions compatible with the ESBMC model-checker)
+- output the automaton in JSON (Usefull to reuse the automaton with another tool.
+    Not space efficient, but easy to parse)
+
+The option `-t` is used to choose the output format.
+
+Here is the license of the original LTL2BA :
+
+
 1. LICENSE
 
 LTL2BA - Version 1.0 - October 2001
